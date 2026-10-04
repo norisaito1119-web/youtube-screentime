@@ -219,7 +219,12 @@ class TrackingEngine:ObservableObject{
         }
         //制限を超えたかで一言変える
         let judge = day.minutes > day.limit ? "⚠️ \(day.minutes - day.limit)分オーバー" : "✅ 制限内"
-        return "📺 \(dateLabel) のYouTube視聴時間：\(day.minutes)分（制限 \(day.limit)分）\(judge)"
+        var text = "📺 \(dateLabel) のYouTube視聴時間：\(day.minutes)分（制限 \(day.limit)分）\(judge)"
+        //直近7日の平均を2行目に足す(履歴がまだない時は出さない)
+        if let avg = AppState.shared.recentAverage(days: 7) {
+            text += "\n📊 直近7日の平均：\(avg.average)分（\(avg.count)日分）"
+        }
+        return text
     }
 
     //[M5-3] Discord Webhookにメッセージを送信

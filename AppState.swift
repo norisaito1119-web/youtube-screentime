@@ -26,7 +26,8 @@ class AppState: ObservableObject{
     private let keySafariEnabled = "yt_safari_enabled" //Safariを監視するか（ON/OFF）
     //private let keyChromeEnabled = "yt_chrome_enabled" G chrome
     private let keyExtendedMinutes = "yt_extended_minutes"//今日の「延長時間クリック」の合計（分）
-    
+    private let keyDailyHistory = "yt_daily_history" //日ごとの視聴時間の履歴 ["2026-10-03": 25, ...]（分）
+
     // 変更されたら画面に自動反映(@Published=公表(ラッパー関数))し、同時にUserDefaultsに保存（didSet）
     //値を変数宣言
     //didset:dailyLimitの中身が書き換わった直後に { } の中の処理を自動的に実行する
@@ -126,11 +127,44 @@ class AppState: ObservableObject{
                 minutes: Int(todaySpentTime / 60), //秒→分
                 limit: totalAllowedMinutes         //制限+延長
             )
+            saveHistory(date: yesterday.date, minutes: yesterday.minutes) //[M1-3] リセット前に履歴へ保存
             resetToday()//[M1-1]
             lastActiveDate = todayStr
             return yesterday
         }
         return nil //日付が同じ→投稿しない
+    }
+
+    //[M1-3]履歴に1日分を保存
+    //UserDefaultsは辞書もそのまま保存できる。[String: Int] = Pythonの {"2026-10-03": 25} と同じ
+    private func saveHistory(date: String, minutes: Int) {
+        var history = dailyHistory
+        history[date] = minutes
+        defaults.set(history, forKey: keyDailyHistory)
+    }
+
+    //保存されている履歴(なければ空の辞書)
+    //as? [String: Int]:取り出した値を辞書型として扱えるか試す。ダメならnil → ?? で空の辞書
+    var dailyHistory: [String: Int] {
+        return defaults.dictionary(forKey: keyDailyHistory) as? [String: Int] ?? [:]
+    }
+
+    //[M1-4]直近N日(今日を除く)の平均視聴時間(分)と、記録があった日数
+    //アプリが動いていなかった日は記録がないので、平均には入れない
+    func recentAverage(days: Int) -> (average: Int, count: Int)? {
+        let history = dailyHistory
+        var total = 0
+        var count = 0
+        for i in 1...days { //1日前〜N日前
+            //Calendar.date(byAdding:):日付の足し算。value: -i で i日前
+            guard let day = Calendar.current.date(byAdding: .day, value: -i, to: Date()) else { continue }
+            if let minutes = history[AppState.formatDate(day)] {
+                total += minutes
+                count += 1
+            }
+        }
+        guard count > 0 else { return nil } //記録が1日もない→nil
+        return (average: total / count, count: count)
     }
     
     //制限時間15分延長用
