@@ -1,0 +1,10 @@
+# 秘密情報
+Secrets.swift
+
+# Xcodeの個人設定・ビルド成果物
+xcuserdata/
+DerivedData/
+build/
+
+# macOS
+.DS_Store
